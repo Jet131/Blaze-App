@@ -1,3 +1,4 @@
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
@@ -21,11 +22,12 @@
     --purple: #9d6bff;
     --pink: #ff5fa8;
   }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0a0c0d; }
   * { box-sizing: border-box; }
   #app-root {
     font-family: 'Inter', -apple-system, sans-serif;
     background: #0a0c0d;
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     justify-content: center;
   }
@@ -38,8 +40,9 @@
   @keyframes bz-slidein { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
 
   .bz-app {
-    width: 100%; max-width: 460px; min-height: 100vh; background: var(--bg); color: var(--text);
+    width: 100%; max-width: 460px; height: 100vh; background: var(--bg); color: var(--text);
     display: flex; flex-direction: column; position: relative; box-shadow: 0 0 60px rgba(0,0,0,0.6);
+    overflow: hidden;
   }
 
   .bz-header {
