@@ -210,6 +210,10 @@
   .bz-bar-label { font-size: 10px; color: var(--text-dim); font-weight: 700; }
 
   .bz-cat-row { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); margin-bottom: 6px; transition: transform 0.15s; }
+  .bz-switch { width: 44px; height: 26px; border-radius: 14px; background: var(--surface-2); border: 1.5px solid var(--line); position: relative; cursor: pointer; flex-shrink: 0; transition: background 0.2s, border-color 0.2s; }
+  .bz-switch.on { background: linear-gradient(135deg, var(--orange-deep), var(--gold)); border-color: var(--orange-deep); }
+  .bz-switch-knob { width: 19px; height: 19px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: 2px; transition: transform 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .bz-switch.on .bz-switch-knob { transform: translateX(18px); }
   .bz-cat-row:hover { transform: translateX(3px); }
   .bz-cat-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
   .bz-cat-name { font-size: 13px; font-weight: 700; }
@@ -330,17 +334,56 @@ function loadSavedState() {
   }
 }
 
+const MILESTONES = [3, 7, 14, 30, 50, 100, 200, 365];
+const MILESTONE_MESSAGES = {
+  3: "🔥 3 days! Off to a real start.",
+  7: "🔥 1 week strong!",
+  14: "🔥 2 weeks. Blue flame status.",
+  30: "🔥 30 days. Purple blaze unlocked.",
+  50: "🔥 50 days. That's serious.",
+  100: "🔥 100 DAYS. Legendary.",
+  200: "🔥 200 days?! Absurd.",
+  365: "🔥 A FULL YEAR. Unreal.",
+};
+
+function playChime(highPitch) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = highPitch ? 880 : 660;
+    gain.gain.setValueAtTime(0.16, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.28);
+  } catch (e) {}
+}
+
+function playMilestoneChime() {
+  playChime(false);
+  setTimeout(() => playChime(true), 130);
+}
+
+function doVibrate(pattern) {
+  try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
+}
+
 function App() {
   const saved = loadSavedState();
   const [view, setView] = useState("home");
   const [categories, setCategories] = useState(saved?.categories || DEFAULT_CATEGORIES);
   const [tasks, setTasks] = useState(saved?.tasks || []);
   const [points, setPoints] = useState(saved?.points || 0);
+  const [soundEnabled, setSoundEnabled] = useState(saved?.soundEnabled !== false);
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [calMonth, setCalMonth] = useState(new Date());
   const { fire, layer } = useSparks();
   const { onScroll: onWaveScroll, node: waveNode } = useFireWave();
   const { show, node: toastNode } = useToast();
+  const prevStreakRef = React.useRef(0);
 
   const addTask = (text, categoryId, priority, date, repeat, weekdays, minutes) => {
     const templateId = "tpl_" + Date.now();
@@ -373,6 +416,7 @@ function App() {
       if (nowDone) {
         show(CELEBRATIONS[Math.floor(Math.random() * CELEBRATIONS.length)]);
         if (evt) fire(evt.clientX, evt.clientY);
+        if (soundEnabled) { playChime(false); doVibrate(35); }
       }
       return { ...t, done: nowDone };
     }));
@@ -383,6 +427,7 @@ function App() {
 
   const totalCompleted = tasks.filter(t => t.done).length;
   const [bestStreak, setBestStreak] = useState(saved?.bestStreak || 0);
+  const [frozenDates, setFrozenDates] = useState(saved?.frozenDates || []);
 
   // a day "counts" toward the streak only if every task scheduled that day is done.
   // days with nothing scheduled are skipped (they don't break the streak, but don't add to it either).
@@ -393,34 +438,74 @@ function App() {
     return dayTasks.every(t => t.done);
   };
 
-  const streak = useMemo(() => {
+  // freezes are earned passively: 1 freeze per 7 fully-clean days you've ever logged, capped at 5 banked at once.
+  const totalCleanDays = useMemo(() => {
+    const uniqueDates = [...new Set(tasks.map(t => t.date))];
+    return uniqueDates.filter(ds => isDayComplete(ds) === true).length;
+  }, [tasks]);
+  const freezesEarned = Math.min(5, Math.floor(totalCleanDays / 7));
+  const freezesAvailable = Math.max(0, freezesEarned - frozenDates.length);
+
+  const { streak, newlyFrozen } = useMemo(() => {
     let s = 0;
+    let usedThisPass = [];
+    let availableNow = freezesEarned - frozenDates.length;
     let d = new Date();
     const todayStatus = isDayComplete(fmtDate(d));
     if (todayStatus === true) { s++; }
     d.setDate(d.getDate() - 1);
     let safety = 0;
     while (safety < 365) {
-      const status = isDayComplete(fmtDate(d));
+      const ds = fmtDate(d);
+      const status = isDayComplete(ds);
       if (status === true) { s++; d.setDate(d.getDate() - 1); }
       else if (status === null) { d.setDate(d.getDate() - 1); }
-      else break;
+      else if (status === false && (frozenDates.includes(ds) || availableNow > 0)) {
+        if (!frozenDates.includes(ds)) { usedThisPass.push(ds); availableNow--; }
+        s++; d.setDate(d.getDate() - 1);
+      } else break;
       safety++;
     }
-    return s;
-  }, [tasks]);
+    return { streak: s, newlyFrozen: usedThisPass };
+  }, [tasks, frozenDates, freezesEarned]);
+
+  useEffect(() => {
+    if (newlyFrozen.length > 0) {
+      setFrozenDates(prev => [...new Set([...prev, ...newlyFrozen])]);
+    }
+  }, [newlyFrozen]);
 
   useEffect(() => {
     if (streak > bestStreak) setBestStreak(streak);
   }, [streak]);
 
   useEffect(() => {
+    if (streak > prevStreakRef.current && MILESTONES.includes(streak)) {
+      show(MILESTONE_MESSAGES[streak] || `🔥 ${streak} day streak!`);
+      const spots = [0.2, 0.4, 0.6, 0.8];
+      spots.forEach((p, i) => setTimeout(() => fire(window.innerWidth * p, 90), i * 90));
+      if (soundEnabled) { playMilestoneChime(); doVibrate([90, 60, 90, 60, 140]); }
+    }
+    prevStreakRef.current = streak;
+  }, [streak]);
+
+  useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ categories, tasks, points, bestStreak }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ categories, tasks, points, bestStreak, frozenDates, soundEnabled }));
     } catch (e) {
       console.error("Failed to save state", e);
     }
-  }, [categories, tasks, points, bestStreak]);
+  }, [categories, tasks, points, bestStreak, frozenDates, soundEnabled]);
+
+  const resetAllData = () => {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    setCategories(DEFAULT_CATEGORIES);
+    setTasks([]);
+    setPoints(0);
+    setBestStreak(0);
+    setFrozenDates([]);
+    setView("home");
+  };
 
   return (
     <div className="bz-app">
@@ -432,7 +517,7 @@ function App() {
         {view === "home" && (
           <Home
             tasks={tasks} categories={categories} points={points} bestStreak={bestStreak} streak={streak}
-            totalCompleted={totalCompleted}
+            totalCompleted={totalCompleted} freezesAvailable={freezesAvailable}
             toggleDone={toggleDone} removeTask={removeTask}
           />
         )}
@@ -446,7 +531,7 @@ function App() {
           />
         )}
         {view === "stats" && <StatsView tasks={tasks} />}
-        {view === "settings" && <SettingsView categories={categories} addCategory={addCategory} />}
+        {view === "settings" && <SettingsView categories={categories} addCategory={addCategory} resetAllData={resetAllData} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} />}
       </div>
       <BottomNav view={view} setView={setView} />
     </div>
@@ -492,31 +577,98 @@ function TaskList({ tasks, categories, toggleDone, removeTask, emptyMessage }) {
   if (tasks.length === 0) return <div className="bz-empty">{emptyMessage || "Nothing here yet."}</div>;
   return (
     <ul className="bz-task-list">
-      {tasks.map(t => {
-        const cat = catById[t.categoryId];
-        return (
-          <li className="bz-task-item" key={t.id} style={{ "--cat-color": cat ? cat.color : "#ff7a1a" }}>
-            <div className={"bz-check" + (t.done ? " on" : "")} onClick={(e) => toggleDone(t.id, e)} role="button" aria-label="toggle done" />
-            <div className="bz-task-body">
-              <div className={"bz-task-text" + (t.done ? " done" : "")}>{t.text}</div>
-              <div className="bz-task-meta">
-                {cat && <span className="bz-pill" style={{ background: cat.color + "26", color: cat.color }}>{cat.name}</span>}
-                <span className="bz-pill" style={{ background: PRIORITY_COLOR[t.priority] + "26", color: PRIORITY_COLOR[t.priority] }}>{PRIORITY_LABEL[t.priority]}</span>
-                {t.repeat && t.repeat !== "none" && <span className="bz-pill" style={{ background: "#ffc94d26", color: "#ffc94d" }}>{t.repeat === "daily" ? "Daily" : "Weekly"}</span>}
-                <span className="bz-pill" style={{ background: "var(--surface-2)", color: "var(--text-dim)" }}>
-                  {typeof t.minutes === "number" ? (t.minutes >= 60 ? `${(t.minutes / 60).toFixed(1)}h` : `${t.minutes}m`) : "N/A"}
-                </span>
-              </div>
-            </div>
-            <button className="bz-del" onClick={() => removeTask(t.id)} aria-label="delete">×</button>
-          </li>
-        );
-      })}
+      {tasks.map(t => (
+        <TaskItem key={t.id} t={t} cat={catById[t.categoryId]} toggleDone={toggleDone} removeTask={removeTask} />
+      ))}
     </ul>
   );
 }
 
-function Home({ tasks, categories, points, bestStreak, streak, totalCompleted, toggleDone, removeTask }) {
+const SWIPE_THRESHOLD = 76;
+
+function TaskItem({ t, cat, toggleDone, removeTask }) {
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const startXRef = React.useRef(0);
+  const startYRef = React.useRef(0);
+  const lockedRef = React.useRef(null); // "h" or "v" once a direction is decided
+
+  const onTouchStart = (e) => {
+    startXRef.current = e.touches[0].clientX;
+    startYRef.current = e.touches[0].clientY;
+    lockedRef.current = null;
+    setDragging(true);
+  };
+  const onTouchMove = (e) => {
+    const dx = e.touches[0].clientX - startXRef.current;
+    const dy = e.touches[0].clientY - startYRef.current;
+    if (!lockedRef.current) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        lockedRef.current = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+      }
+    }
+    if (lockedRef.current === "h") {
+      setDragX(dx);
+    }
+  };
+  const onTouchEnd = () => {
+    setDragging(false);
+    if (dragX > SWIPE_THRESHOLD) {
+      toggleDone(t.id);
+    } else if (dragX < -SWIPE_THRESHOLD) {
+      removeTask(t.id);
+    }
+    setDragX(0);
+    lockedRef.current = null;
+  };
+
+  const revealRight = Math.min(1, Math.max(0, dragX / SWIPE_THRESHOLD));
+  const revealLeft = Math.min(1, Math.max(0, -dragX / SWIPE_THRESHOLD));
+
+  return (
+    <li style={{ position: "relative", overflow: "hidden", borderRadius: 12 }}>
+      {dragX !== 0 && (
+        <div style={{
+          position: "absolute", top: 0, bottom: 0, left: 0, right: 0,
+          display: "flex", justifyContent: dragX > 0 ? "flex-start" : "flex-end",
+          alignItems: "center", padding: "0 16px",
+          background: dragX > 0 ? `rgba(62,207,142,${0.18 + revealRight * 0.3})` : `rgba(239,68,68,${0.18 + revealLeft * 0.3})`,
+          fontSize: 18, fontWeight: 800,
+        }}>
+          {dragX > 0 ? <span style={{ opacity: revealRight }}>✅ {t.done ? "Undo" : "Done"}</span> : <span style={{ opacity: revealLeft }}>🗑️ Delete</span>}
+        </div>
+      )}
+      <div
+        className="bz-task-item"
+        style={{
+          "--cat-color": cat ? cat.color : "#ff7a1a",
+          transform: `translateX(${dragX}px)`,
+          transition: dragging ? "none" : "transform 0.2s ease",
+          touchAction: "pan-y",
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        <div className={"bz-check" + (t.done ? " on" : "")} onClick={(e) => toggleDone(t.id, e)} role="button" aria-label="toggle done" />
+        <div className="bz-task-body">
+          <div className={"bz-task-text" + (t.done ? " done" : "")}>{t.text}</div>
+          <div className="bz-task-meta">
+            {cat && <span className="bz-pill" style={{ background: cat.color + "26", color: cat.color }}>{cat.name}</span>}
+            <span className="bz-pill" style={{ background: PRIORITY_COLOR[t.priority] + "26", color: PRIORITY_COLOR[t.priority] }}>{PRIORITY_LABEL[t.priority]}</span>
+            {t.repeat && t.repeat !== "none" && <span className="bz-pill" style={{ background: "#ffc94d26", color: "#ffc94d" }}>{t.repeat === "daily" ? "Daily" : "Weekly"}</span>}
+            <span className="bz-pill" style={{ background: "var(--surface-2)", color: "var(--text-dim)" }}>
+              {typeof t.minutes === "number" ? (t.minutes >= 60 ? `${(t.minutes / 60).toFixed(1)}h` : `${t.minutes}m`) : "N/A"}
+            </span>
+          </div>
+        </div>
+        <button className="bz-del" onClick={() => removeTask(t.id)} aria-label="delete">×</button>
+      </div>
+    </li>
+  );
+}
+
+function Home({ tasks, categories, points, bestStreak, streak, totalCompleted, freezesAvailable, toggleDone, removeTask }) {
   const todayTasks = tasks.filter(t => t.date === todayStr());
   const todayDone = todayTasks.filter(t => t.done).length;
   const todayTotal = todayTasks.length;
@@ -531,10 +683,15 @@ function Home({ tasks, categories, points, bestStreak, streak, totalCompleted, t
     <div>
       <div className="bz-hero-flame" style={{ "--glow-color": tier.glow }}>
         <span className={"bz-flame-emoji" + (streak >= 30 ? " legendary" : "")} style={flameFilter(streak)}>🔥</span>
-        <div>
+        <div style={{ flex: 1 }}>
           <div className="bz-hero-num">{streak} <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-dim)" }}>day streak</span></div>
           <div className="bz-hero-tier" style={{ color: tier.color }}>{tier.name}</div>
         </div>
+        {freezesAvailable > 0 && (
+          <div title="Streak freezes protect you if you miss a day" style={{ fontSize: 12, fontWeight: 800, color: "#4da6ff", textAlign: "center" }}>
+            🧊<br />×{freezesAvailable}
+          </div>
+        )}
       </div>
 
       <div className="bz-stats-row">
@@ -797,7 +954,7 @@ function StatsView({ tasks }) {
   );
 }
 
-function SettingsView({ categories, addCategory }) {
+function SettingsView({ categories, addCategory, resetAllData, soundEnabled, setSoundEnabled }) {
   const [name, setName] = useState("");
   const palette = ["#4da6ff","#ff5fa8","#3ecf8e","#ff7a1a","#9d6bff","#ffc94d","#ef4444"];
   const color = palette[categories.length % palette.length];
@@ -808,6 +965,11 @@ function SettingsView({ categories, addCategory }) {
     if (!n) return;
     addCategory(n, color);
     setName("");
+  };
+
+  const handleReset = () => {
+    const confirmed = window.confirm("This wipes every task, streak, and category back to default. This can't be undone. Continue?");
+    if (confirmed) resetAllData();
   };
 
   return (
@@ -828,6 +990,27 @@ function SettingsView({ categories, addCategory }) {
       <div className="bz-cat-row"><span style={{color: PRIORITY_COLOR.low, fontWeight: 700}}>🔹 Low priority</span><span style={{marginLeft: "auto", fontWeight: 700}}>{PRIORITY_POINTS.low} heat</span></div>
       <div className="bz-cat-row"><span style={{color: PRIORITY_COLOR.medium, fontWeight: 700}}>🔶 Medium priority</span><span style={{marginLeft: "auto", fontWeight: 700}}>{PRIORITY_POINTS.medium} heat</span></div>
       <div className="bz-cat-row"><span style={{color: PRIORITY_COLOR.high, fontWeight: 700}}>🔥 High priority</span><span style={{marginLeft: "auto", fontWeight: 700}}>{PRIORITY_POINTS.high} heat</span></div>
+
+      <div className="bz-section-title" style={{ marginTop: 20 }}>Sound &amp; haptics</div>
+      <div className="bz-cat-row" onClick={() => setSoundEnabled(!soundEnabled)} style={{ cursor: "pointer" }}>
+        <div className={"bz-switch" + (soundEnabled ? " on" : "")}><div className="bz-switch-knob" /></div>
+        <div className="bz-cat-name">{soundEnabled ? "On — chime + vibrate on complete" : "Off — silent"}</div>
+      </div>
+
+      <div className="bz-section-title" style={{ marginTop: 20 }}>Streak freezes</div>
+      <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 10, lineHeight: 1.5 }}>
+        You earn 1 freeze for every 7 fully-completed days you've ever logged (capped at 5 banked). A freeze automatically protects your streak the next time you miss a day.
+      </div>
+
+      <div className="bz-section-title" style={{ marginTop: 20, color: "var(--red)" }}>Danger zone</div>
+      <button
+        className="bz-submit-btn"
+        style={{ background: "linear-gradient(135deg, var(--red), #b91c1c)", color: "#fff" }}
+        onClick={handleReset}
+        type="button"
+      >
+        Reset all data
+      </button>
     </div>
   );
 }
