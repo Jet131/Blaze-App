@@ -150,8 +150,15 @@
   .bz-task-meta { display: flex; gap: 5px; margin-top: 5px; flex-wrap: wrap; }
   .bz-pill { font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 6px; white-space: nowrap; }
   .bz-del { border: none; background: none; color: var(--text-dim); font-size: 18px; cursor: pointer; flex-shrink: 0; transition: transform 0.15s, color 0.15s; }
+  @keyframes bz-duesoon { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } 50% { box-shadow: 0 0 8px 3px rgba(239,68,68,0.4); } }
+  .bz-task-item.due-soon { animation: bz-duesoon 1.8s ease-in-out infinite; }
   .bz-del:hover { color: var(--red); transform: scale(1.4) rotate(90deg); }
-  .bz-empty { text-align: center; padding: 26px 10px; color: var(--text-dim); font-size: 13px; }
+  .bz-empty { text-align: center; padding: 32px 10px; color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+  .bz-empty-icon { font-size: 36px; display: block; margin-bottom: 8px; }
+  .bz-all-done { text-align: center; padding: 20px 10px; }
+  .bz-all-done-icon { font-size: 42px; display: block; animation: bz-flicker 1.6s ease-in-out infinite; }
+  .bz-all-done-text { font-size: 16px; font-weight: 800; margin-top: 6px; color: var(--gold); }
+  .bz-all-done-sub { font-size: 13px; color: var(--text-dim); margin-top: 3px; }
 
   .bz-add-page { display: flex; flex-direction: column; gap: 14px; }
   .bz-add-hero { text-align: center; padding: 10px 0 4px; }
@@ -296,8 +303,33 @@ function useSparks() {
 
 function useToast() {
   const [toast, setToast] = useState(null);
-  const show = (msg) => { setToast(msg); setTimeout(() => setToast(null), 1500); };
-  const node = toast ? <div className="bz-toast">{toast}</div> : null;
+  const timerRef = React.useRef(null);
+
+  const show = (msg, undoFn) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setToast({ msg, undoFn });
+    timerRef.current = setTimeout(() => setToast(null), undoFn ? 3500 : 1500);
+  };
+
+  const dismiss = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setToast(null);
+  };
+
+  const node = toast ? (
+    <div className="bz-toast" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ flex: 1 }}>{toast.msg}</span>
+      {toast.undoFn && (
+        <button
+          onClick={() => { toast.undoFn(); dismiss(); }}
+          style={{ background: "rgba(255,255,255,0.25)", border: "none", borderRadius: 8, color: "#1a0d00", fontWeight: 800, fontSize: 12, padding: "4px 10px", cursor: "pointer" }}
+        >
+          Undo
+        </button>
+      )}
+    </div>
+  ) : null;
+
   return { show, node };
 }
 
@@ -422,7 +454,36 @@ function App() {
     }));
   };
 
-  const removeTask = (id) => setTasks(prev => prev.filter(t => t.id !== id));
+  const removeTask = (id) => {
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+
+    let removed;
+    let remaining;
+
+    if (task.templateId) {
+      // recurring: delete this instance + all future instances of same series
+      const today = todayStr();
+      removed = tasks.filter(t => t.templateId === task.templateId && t.date >= today);
+      remaining = tasks.filter(t => !(t.templateId === task.templateId && t.date >= today));
+    } else {
+      removed = [task];
+      remaining = tasks.filter(t => t.id !== id);
+    }
+
+    setTasks(remaining);
+
+    const label = task.templateId
+      ? `Removed ${removed.length} instance${removed.length > 1 ? "s" : ""} of "${task.text}"`
+      : `Removed "${task.text}"`;
+
+    show(label, () => setTasks(prev => {
+      // re-insert removed tasks sorted by date
+      const merged = [...prev, ...removed];
+      merged.sort((a, b) => a.date < b.date ? -1 : 1);
+      return merged;
+    }));
+  };
   const addCategory = (name, color) => setCategories(prev => [...prev, { id: "cat-" + Date.now(), name, color }]);
 
   const totalCompleted = tasks.filter(t => t.done).length;
@@ -639,7 +700,7 @@ function TaskItem({ t, cat, toggleDone, removeTask }) {
         </div>
       )}
       <div
-        className="bz-task-item"
+        className={"bz-task-item" + (!t.done && typeof t.minutes === "number" && t.minutes <= 30 ? " due-soon" : "")}
         style={{
           "--cat-color": cat ? cat.color : "#ff7a1a",
           transform: `translateX(${dragX}px)`,
@@ -722,7 +783,20 @@ function Home({ tasks, categories, points, bestStreak, streak, totalCompleted, f
       </div>
 
       <div className="bz-section-title">🔥 Today</div>
-      <TaskList tasks={todayTasks} categories={categories} toggleDone={toggleDone} removeTask={removeTask} emptyMessage="Nothing scheduled today. Tap + to add one." />
+      {todayTotal === 0 ? (
+        <div className="bz-empty">
+          <span className="bz-empty-icon">🌊</span>
+          Calm waters — nothing scheduled.<br />Tap <strong>+</strong> to add something.
+        </div>
+      ) : todayDone === todayTotal ? (
+        <div className="bz-all-done">
+          <span className="bz-all-done-icon">🔥</span>
+          <div className="bz-all-done-text">All burned down!</div>
+          <div className="bz-all-done-sub">Every task done today. Streak safe.</div>
+        </div>
+      ) : (
+        <TaskList tasks={todayTasks} categories={categories} toggleDone={toggleDone} removeTask={removeTask} />
+      )}
     </div>
   );
 }
