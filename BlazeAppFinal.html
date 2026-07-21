@@ -43,6 +43,12 @@
   @keyframes bz-spark-fall { 0% { transform: translateY(0) scale(1) rotate(0); opacity: 1; } 100% { transform: translateY(80px) scale(0.3) rotate(300deg); opacity: 0; } }
   @keyframes bz-pulse-glow { 0%,100% { box-shadow: 0 0 18px var(--glow-color, #ff7a1a55); } 50% { box-shadow: 0 0 34px var(--glow-color, #ff7a1a99); } }
   @keyframes bz-slidein { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
+  @keyframes bz-tab-in-right { 0% { opacity: 0; transform: translateX(30px); } 100% { opacity: 1; transform: translateX(0); } }
+  @keyframes bz-tab-in-left { 0% { opacity: 0; transform: translateX(-30px); } 100% { opacity: 1; transform: translateX(0); } }
+  @keyframes bz-flame-flicker-a { 0%,100% { transform: scaleY(1) scaleX(1) rotate(-2deg); } 30% { transform: scaleY(1.07) scaleX(0.96) rotate(1deg); } 55% { transform: scaleY(0.95) scaleX(1.05) rotate(-3deg); } 80% { transform: scaleY(1.04) scaleX(0.97) rotate(2deg); } }
+  @keyframes bz-flame-flicker-b { 0%,100% { transform: scaleY(1) rotate(2deg); } 40% { transform: scaleY(0.92) rotate(-3deg); } 70% { transform: scaleY(1.06) rotate(3deg); } }
+  @keyframes bz-flame-flicker-c { 0%,100% { transform: scaleY(1) translateY(0) rotate(-1deg); } 50% { transform: scaleY(0.88) translateY(2px) rotate(2deg); } }
+  @keyframes bz-ember-rise { 0% { transform: translateY(0) scale(1); opacity: 0.95; } 100% { transform: translateY(-44px) scale(0.25); opacity: 0; } }
 
   .bz-app {
     width: 100%; max-width: 460px; height: 100vh; background: var(--bg); color: var(--text);
@@ -59,7 +65,9 @@
   .bz-header-gear { font-size: 19px; cursor: pointer; color: var(--text-dim); transition: transform 0.2s; }
   .bz-header-gear:hover { transform: rotate(70deg); color: var(--text); }
 
-  .bz-content { flex: 1; overflow-y: auto; padding: 6px 16px 18px; animation: bz-slidein 0.25s ease; position: relative; }
+  .bz-content { flex: 1; overflow-y: auto; padding: 6px 16px 18px; position: relative; }
+  .bz-tab-pane { animation: bz-tab-in-right 0.22s ease; }
+  .bz-tab-pane.dir-left { animation-name: bz-tab-in-left; }
 
   @keyframes bz-firewave {
     0% { transform: translateY(-100%); opacity: 0; }
@@ -229,6 +237,47 @@
   .bz-spark-bit { position: absolute; width: 8px; height: 8px; border-radius: 50%; animation: bz-spark-fall 0.9s ease-out forwards; }
 
   .bz-toast { position: fixed; bottom: 86px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--orange-deep), var(--gold)); color: #1a0d00; padding: 10px 18px; border-radius: 20px; font-weight: 800; font-size: 13px; z-index: 1000; animation: bz-pop 0.3s ease; box-shadow: 0 8px 22px rgba(255,122,26,0.4); }
+
+  .bz-flame-wrap { position: relative; display: inline-block; flex-shrink: 0; }
+  .bz-flame-layer-outer { transform-origin: 50% 100%; animation: bz-flame-flicker-a 2.1s ease-in-out infinite; }
+  .bz-flame-layer-mid { transform-origin: 50% 100%; animation: bz-flame-flicker-b 1.5s ease-in-out infinite; }
+  .bz-flame-layer-core { transform-origin: 50% 100%; animation: bz-flame-flicker-c 1.1s ease-in-out infinite; }
+  .bz-ember { position: absolute; border-radius: 50%; animation: bz-ember-rise 1.6s ease-in infinite; }
+
+  .bz-stopwatch-face { display: flex; flex-direction: column; align-items: center; padding: 34px 0 10px; }
+  .bz-sw-time { font-size: 50px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .bz-sw-ms { font-size: 20px; color: var(--text-dim); font-weight: 700; }
+  .bz-sw-ctrl-row { display: flex; gap: 16px; margin-top: 30px; }
+  .bz-sw-btn { width: 64px; height: 64px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.12s; }
+  .bz-sw-btn:active { transform: scale(0.94); }
+  .bz-sw-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .bz-sw-btn.primary { background: linear-gradient(135deg, var(--gold), var(--orange-deep)); color: #1a0d00; border: none; box-shadow: 0 6px 18px rgba(255,122,26,0.4); }
+  .bz-sw-laps { width: 100%; margin-top: 28px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 14px; }
+  .bz-lap-row { display: flex; justify-content: space-between; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .bz-lap-row:last-child { border-bottom: none; }
+  .bz-lap-num { color: var(--text-dim); font-weight: 700; }
+  .bz-lap-time { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .bz-lap-time.best { color: var(--green); }
+  .bz-lap-time.worst { color: var(--red); }
+
+  .bz-seg-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .bz-seg-btn { flex: 1; min-width: 52px; padding: 10px 0; text-align: center; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-size: 12px; font-weight: 800; letter-spacing: 0.02em; color: var(--text-dim); cursor: pointer; transition: all 0.15s; }
+  .bz-seg-btn:hover { transform: translateY(-2px); }
+  .bz-seg-btn.active { border-color: var(--orange-deep); color: var(--gold); background: rgba(255,122,26,0.12); }
+  .bz-timer-flame { opacity: 0.35; filter: saturate(0.4); transition: opacity 0.4s ease, filter 0.4s ease; }
+  .bz-timer-flame.lit { opacity: 1; filter: saturate(1) drop-shadow(0 0 16px rgba(255,122,26,0.45)); }
+
+  .bz-freeze-badge { display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: #4da6ff; background: rgba(77,166,255,0.12); border: 1px solid rgba(77,166,255,0.25); padding: 4px 9px; border-radius: 20px; }
+
+  .bz-flame-frost-wrap { position: relative; display: inline-flex; }
+  .bz-flame-frost-wrap.frosted { filter: saturate(0.55) brightness(0.92); }
+  .bz-flame-frost-wrap.frosted::after {
+    content: ''; position: absolute; inset: -8px; border-radius: 50%;
+    border: 2px solid rgba(77,166,255,0.55);
+    box-shadow: 0 0 14px rgba(77,166,255,0.45), inset 0 0 12px rgba(77,166,255,0.3);
+    pointer-events: none;
+  }
+  .bz-frost-badge { position: absolute; bottom: -4px; right: -6px; font-size: 15px; filter: none; }
 </style>
 <script type="text/babel">
 const { useState, useMemo, useEffect } = React;
@@ -246,6 +295,9 @@ const DEFAULT_CATEGORIES = [
   { id: "personal", name: "Personal", color: "#ff5fa8" },
   { id: "fitness", name: "Fitness", color: "#3ecf8e" },
 ];
+
+// order used for both the bottom nav and swipe-between-tabs (the "add" sheet and settings — reached via the gear icon — are excluded from the swipe cycle)
+const NAV_ORDER = ["home", "calendar", "timer", "stats"];
 
 function fmtDate(d) {
   const y = d.getFullYear();
@@ -403,9 +455,67 @@ function doVibrate(pattern) {
   try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
 }
 
+const FLAME_PATH = "M12 23c-4.418 0-8-3.134-8-7 0-2.373 1.316-4.42 2.865-6.196C8.365 7.99 10 5.5 10 3c0 0 5 2 5 7 0 1-.5 2-.5 2s2.5-1 3.5-4c1 2 2 4 2 8 0 3.866-3.582 7-8 7z";
+
+// a real animated flame built from 3 independently-flickering layers instead of a static emoji —
+// bigger streaks get more (and more frequent) rising embers, chess.com-streak style.
+function FlameIcon({ streak, size = 46 }) {
+  const tone = flameFilter(streak);
+  const emberCount = streak >= 30 ? 6 : streak >= 14 ? 5 : streak >= 7 ? 4 : streak >= 3 ? 3 : streak >= 1 ? 2 : 0;
+  const embers = useMemo(() => Array.from({ length: emberCount }, (_, i) => ({
+    left: 26 + Math.random() * 46,
+    delay: (i * 0.3) + Math.random() * 0.4,
+    dot: 3 + Math.random() * 3,
+  })), [emberCount]);
+
+  return (
+    <div className="bz-flame-wrap" style={{ width: size, height: size, ...tone }}>
+      {embers.map((e, i) => (
+        <div key={i} className="bz-ember" style={{ left: `${e.left}%`, bottom: "42%", width: e.dot, height: e.dot, background: i % 2 ? "var(--gold)" : "var(--orange-deep)", animationDelay: `${e.delay}s` }} />
+      ))}
+      <svg className="bz-flame-layer-outer" style={{ position: "absolute", left: 0, top: 0 }} width={size} height={size} viewBox="0 0 24 24">
+        <path d={FLAME_PATH} fill="var(--orange-deep)" />
+      </svg>
+      <svg className="bz-flame-layer-mid" style={{ position: "absolute", left: size * 0.15, top: size * 0.13 }} width={size * 0.68} height={size * 0.68} viewBox="0 0 24 24">
+        <path d={FLAME_PATH} fill="var(--gold)" />
+      </svg>
+      <svg className="bz-flame-layer-core" style={{ position: "absolute", left: size * 0.32, top: size * 0.32 }} width={size * 0.36} height={size * 0.36} viewBox="0 0 24 24">
+        <path d={FLAME_PATH} fill="#fff4c2" />
+      </svg>
+    </div>
+  );
+}
+
 function App() {
   const saved = loadSavedState();
   const [view, setView] = useState("home");
+  const [slideDir, setSlideDir] = useState("right");
+  const changeView = (nextView) => {
+    const curIdx = NAV_ORDER.indexOf(view);
+    const nextIdx = NAV_ORDER.indexOf(nextView);
+    if (curIdx !== -1 && nextIdx !== -1 && nextIdx !== curIdx) {
+      setSlideDir(nextIdx > curIdx ? "right" : "left");
+    }
+    setView(nextView);
+  };
+  const swipeRef = React.useRef({ x: 0, y: 0, active: false, fromTask: false });
+  const onContentTouchStart = (e) => {
+    const t = e.touches[0];
+    swipeRef.current = { x: t.clientX, y: t.clientY, active: true, fromTask: !!(e.target.closest && e.target.closest(".bz-task-item")) };
+  };
+  const onContentTouchEnd = (e) => {
+    const s = swipeRef.current;
+    swipeRef.current = { ...s, active: false };
+    if (!s.active || s.fromTask) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+    const curIdx = NAV_ORDER.indexOf(view);
+    if (curIdx === -1) return;
+    if (dx < 0 && curIdx < NAV_ORDER.length - 1) changeView(NAV_ORDER[curIdx + 1]);
+    else if (dx > 0 && curIdx > 0) changeView(NAV_ORDER[curIdx - 1]);
+  };
   const [categories, setCategories] = useState(saved?.categories || DEFAULT_CATEGORIES);
   const [tasks, setTasks] = useState(saved?.tasks || []);
   const [points, setPoints] = useState(saved?.points || 0);
@@ -499,12 +609,14 @@ function App() {
     return dayTasks.every(t => t.done);
   };
 
-  // freezes are earned passively: 1 freeze per 7 fully-clean days you've ever logged, capped at 5 banked at once.
-  const totalCleanDays = useMemo(() => {
-    const uniqueDates = [...new Set(tasks.map(t => t.date))];
-    return uniqueDates.filter(ds => isDayComplete(ds) === true).length;
-  }, [tasks]);
-  const freezesEarned = Math.min(5, Math.floor(totalCleanDays / 7));
+  // freezes are earned at streak milestones: every 7-day mark (7, 14, 21, 28...) plus a bonus at the
+  // bigger milestones (30, 50, 100, 200, 365). Based on your best-ever streak so already-earned freezes
+  // don't vanish just because a later streak breaks.
+  const freezesEarned = useMemo(() => {
+    let count = Math.floor(bestStreak / 7);
+    [30, 50, 100, 200, 365].forEach(milestone => { if (bestStreak >= milestone) count++; });
+    return count;
+  }, [bestStreak]);
   const freezesAvailable = Math.max(0, freezesEarned - frozenDates.length);
 
   const { streak, newlyFrozen } = useMemo(() => {
@@ -529,6 +641,15 @@ function App() {
     }
     return { streak: s, newlyFrozen: usedThisPass };
   }, [tasks, frozenDates, freezesEarned]);
+
+  // true from the moment a freeze auto-covers a missed day until you finish today's tasks —
+  // i.e. "you're currently coasting on a freeze, get back on track"
+  const livingOnFreeze = useMemo(() => {
+    const today = todayStr();
+    if (isDayComplete(today) === true) return false;
+    const yesterday = addDays(today, -1);
+    return isDayComplete(yesterday) === false && frozenDates.includes(yesterday);
+  }, [tasks, frozenDates]);
 
   useEffect(() => {
     if (newlyFrozen.length > 0) {
@@ -572,39 +693,47 @@ function App() {
     <div className="bz-app">
       {layer}
       {toastNode}
-      <Header view={view} setView={setView} />
-      <div className="bz-content" onScroll={onWaveScroll}>
+      <Header view={view} setView={changeView} freezesAvailable={freezesAvailable} />
+      <div className="bz-content" onScroll={onWaveScroll} onTouchStart={onContentTouchStart} onTouchEnd={onContentTouchEnd}>
         {waveNode}
-        {view === "home" && (
-          <Home
-            tasks={tasks} categories={categories} points={points} bestStreak={bestStreak} streak={streak}
-            totalCompleted={totalCompleted} freezesAvailable={freezesAvailable}
-            toggleDone={toggleDone} removeTask={removeTask}
-          />
-        )}
-        {view === "add" && (
-          <AddPage categories={categories} addTask={addTask} setView={setView} />
-        )}
-        {view === "calendar" && (
-          <CalendarView
-            tasks={tasks} categories={categories} calMonth={calMonth} setCalMonth={setCalMonth}
-            selectedDate={selectedDate} setSelectedDate={setSelectedDate} toggleDone={toggleDone} removeTask={removeTask}
-          />
-        )}
-        {view === "stats" && <StatsView tasks={tasks} />}
-        {view === "settings" && <SettingsView categories={categories} addCategory={addCategory} resetAllData={resetAllData} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} />}
+        <div key={view} className={"bz-tab-pane" + (slideDir === "left" ? " dir-left" : "")}>
+          {view === "home" && (
+            <Home
+              tasks={tasks} categories={categories} points={points} bestStreak={bestStreak} streak={streak}
+              totalCompleted={totalCompleted} livingOnFreeze={livingOnFreeze}
+              toggleDone={toggleDone} removeTask={removeTask}
+            />
+          )}
+          {view === "add" && (
+            <AddPage categories={categories} addTask={addTask} setView={changeView} />
+          )}
+          {view === "calendar" && (
+            <CalendarView
+              tasks={tasks} categories={categories} calMonth={calMonth} setCalMonth={setCalMonth}
+              selectedDate={selectedDate} setSelectedDate={setSelectedDate} toggleDone={toggleDone} removeTask={removeTask}
+            />
+          )}
+          {view === "timer" && <TimerTab />}
+          {view === "stats" && <StatsView tasks={tasks} />}
+          {view === "settings" && <SettingsView categories={categories} addCategory={addCategory} resetAllData={resetAllData} soundEnabled={soundEnabled} setSoundEnabled={setSoundEnabled} />}
+        </div>
       </div>
-      <BottomNav view={view} setView={setView} />
+      <BottomNav view={view} setView={changeView} />
     </div>
   );
 }
 
-function Header({ view, setView }) {
-  const titles = { home: "Blaze", add: "New task", calendar: "Calendar", stats: "Stats", settings: "Settings" };
+function Header({ view, setView, freezesAvailable }) {
+  const titles = { home: "Blaze", add: "New task", calendar: "Calendar", timer: "Stopwatch", stats: "Stats", settings: "Settings" };
   return (
     <div className="bz-header">
       <div className="bz-header-title">{view === "home" ? <span>Blaze 🔥</span> : titles[view]}</div>
-      <div className="bz-header-gear" onClick={() => setView("settings")}>⚙️</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {freezesAvailable > 0 && (
+          <div className="bz-freeze-badge" title="Streak freezes — auto-protect a missed day">🧊 {freezesAvailable}</div>
+        )}
+        <div className="bz-header-gear" onClick={() => setView("settings")}>⚙️</div>
+      </div>
     </div>
   );
 }
@@ -614,8 +743,8 @@ function BottomNav({ view, setView }) {
     { id: "home", label: "Home", icon: "🏠" },
     { id: "calendar", label: "Calendar", icon: "📅" },
     { id: "add", label: "Add", icon: "+", fab: true },
+    { id: "timer", label: "Timer", icon: "⏱️" },
     { id: "stats", label: "Stats", icon: "📊" },
-    { id: "settings", label: "More", icon: "⚙️" },
   ];
   return (
     <div className="bz-bottomnav">
@@ -729,7 +858,7 @@ function TaskItem({ t, cat, toggleDone, removeTask }) {
   );
 }
 
-function Home({ tasks, categories, points, bestStreak, streak, totalCompleted, freezesAvailable, toggleDone, removeTask }) {
+function Home({ tasks, categories, points, bestStreak, streak, totalCompleted, livingOnFreeze, toggleDone, removeTask }) {
   const todayTasks = tasks.filter(t => t.date === todayStr());
   const todayDone = todayTasks.filter(t => t.done).length;
   const todayTotal = todayTasks.length;
@@ -743,16 +872,16 @@ function Home({ tasks, categories, points, bestStreak, streak, totalCompleted, f
   return (
     <div>
       <div className="bz-hero-flame" style={{ "--glow-color": tier.glow }}>
-        <span className={"bz-flame-emoji" + (streak >= 30 ? " legendary" : "")} style={flameFilter(streak)}>🔥</span>
+        <div className={"bz-flame-frost-wrap" + (livingOnFreeze ? " frosted" : "")}>
+          <FlameIcon streak={streak} size={58} />
+          {livingOnFreeze && <span className="bz-frost-badge">🧊</span>}
+        </div>
         <div style={{ flex: 1 }}>
           <div className="bz-hero-num">{streak} <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-dim)" }}>day streak</span></div>
-          <div className="bz-hero-tier" style={{ color: tier.color }}>{tier.name}</div>
-        </div>
-        {freezesAvailable > 0 && (
-          <div title="Streak freezes protect you if you miss a day" style={{ fontSize: 12, fontWeight: 800, color: "#4da6ff", textAlign: "center" }}>
-            🧊<br />×{freezesAvailable}
+          <div className="bz-hero-tier" style={{ color: tier.color }}>
+            {livingOnFreeze ? "On a freeze — finish today to thaw" : tier.name}
           </div>
-        )}
+        </div>
       </div>
 
       <div className="bz-stats-row">
@@ -790,7 +919,7 @@ function Home({ tasks, categories, points, bestStreak, streak, totalCompleted, f
         </div>
       ) : todayDone === todayTotal ? (
         <div className="bz-all-done">
-          <span className="bz-all-done-icon">🔥</span>
+          <div className="bz-all-done-icon" style={{ display: "flex", justifyContent: "center" }}><FlameIcon streak={40} size={48} /></div>
           <div className="bz-all-done-text">All burned down!</div>
           <div className="bz-all-done-sub">Every task done today. Streak safe.</div>
         </div>
@@ -987,6 +1116,161 @@ function CalendarView({ tasks, categories, calMonth, setCalMonth, selectedDate, 
         {new Date(selectedDate + "T00:00:00").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
       </div>
       <TaskList tasks={selectedTasks} categories={categories} toggleDone={toggleDone} removeTask={removeTask} emptyMessage="No tasks scheduled for this day." />
+    </div>
+  );
+}
+
+function TimerTab() {
+  const [mode, setMode] = useState("stopwatch");
+  return (
+    <div>
+      <div className="bz-seg-row">
+        <div className={"bz-seg-btn" + (mode === "stopwatch" ? " active" : "")} onClick={() => setMode("stopwatch")}>Stopwatch</div>
+        <div className={"bz-seg-btn" + (mode === "countdown" ? " active" : "")} onClick={() => setMode("countdown")}>Timer</div>
+      </div>
+      {mode === "stopwatch" ? <StopwatchView /> : <CountdownView />}
+    </div>
+  );
+}
+
+const TIMER_PRESETS = [1, 5, 10, 15, 25, 60];
+
+function CountdownView() {
+  const [durationSec, setDurationSec] = useState(5 * 60);
+  const [remaining, setRemaining] = useState(5 * 60);
+  const [running, setRunning] = useState(false);
+  const [done, setDone] = useState(false);
+  const intervalRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!running) { clearInterval(intervalRef.current); return; }
+    intervalRef.current = setInterval(() => {
+      setRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(intervalRef.current);
+          setRunning(false);
+          setDone(true);
+          playMilestoneChime();
+          doVibrate([120, 80, 120]);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(intervalRef.current);
+  }, [running]);
+
+  const setPreset = (mins) => {
+    if (running) return;
+    setDurationSec(mins * 60);
+    setRemaining(mins * 60);
+    setDone(false);
+  };
+  const adjust = (deltaMin) => {
+    if (running) return;
+    const next = Math.max(60, durationSec + deltaMin * 60);
+    setDurationSec(next);
+    setRemaining(next);
+    setDone(false);
+  };
+  const toggle = () => { setDone(false); setRunning(r => !r); };
+  const reset = () => { setRunning(false); setRemaining(durationSec); setDone(false); };
+
+  const progress = durationSec === 0 ? 0 : 1 - remaining / durationSec;
+  const flameStreak = done ? 40 : progress >= 0.75 ? 14 : progress >= 0.5 ? 7 : progress >= 0.25 ? 3 : progress > 0 ? 1 : 0;
+  const m = String(Math.floor(remaining / 60)).padStart(2, "0");
+  const s = String(remaining % 60).padStart(2, "0");
+
+  return (
+    <div>
+      <div className="bz-seg-row" style={{ marginBottom: 8 }}>
+        {TIMER_PRESETS.map(p => (
+          <div key={p} className={"bz-seg-btn" + (durationSec === p * 60 ? " active" : "")} onClick={() => setPreset(p)}>{p}m</div>
+        ))}
+      </div>
+
+      <div className="bz-stopwatch-face">
+        <div className={"bz-timer-flame" + (running || done ? " lit" : "")} style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+          <FlameIcon streak={flameStreak} size={44} />
+        </div>
+        <div className="bz-sw-time">{m}:{s}</div>
+        <div style={{ height: 20, marginTop: 6, fontWeight: 800, fontSize: 13, color: "var(--gold)" }}>{done ? "Time's up!" : "\u00A0"}</div>
+
+        <div className="bz-sw-ctrl-row">
+          <button className="bz-sw-btn" onClick={() => adjust(-1)} disabled={running}>−1m</button>
+          <button className="bz-sw-btn primary" onClick={toggle} disabled={remaining <= 0}>{running ? "Pause" : "Start"}</button>
+          <button className="bz-sw-btn" onClick={() => adjust(1)} disabled={running}>+1m</button>
+        </div>
+        <button className="bz-sw-btn" style={{ width: "auto", padding: "0 22px", marginTop: 18, borderRadius: 20 }} onClick={reset}>Reset</button>
+      </div>
+    </div>
+  );
+}
+
+function formatStopwatch(ms) {
+  const totalCs = Math.floor(ms / 10);
+  const cs = totalCs % 100;
+  const totalSec = Math.floor(totalCs / 100);
+  const s = totalSec % 60;
+  const m = Math.floor(totalSec / 60);
+  return { m: String(m).padStart(2, "0"), s: String(s).padStart(2, "0"), cs: String(cs).padStart(2, "0") };
+}
+
+function StopwatchView() {
+  const [elapsed, setElapsed] = useState(0);
+  const [running, setRunning] = useState(false);
+  const [laps, setLaps] = useState([]);
+  const startRef = React.useRef(0);
+  const rafRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!running) return;
+    startRef.current = Date.now() - elapsed;
+    const tick = () => {
+      setElapsed(Date.now() - startRef.current);
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [running]);
+
+  const toggle = () => setRunning(r => !r);
+  const reset = () => { setRunning(false); setElapsed(0); setLaps([]); };
+  const lap = () => setLaps(prev => [{ id: Date.now(), total: elapsed }, ...prev]);
+
+  const { m, s, cs } = formatStopwatch(elapsed);
+  const lapDeltas = laps.map((l, i) => ({ ...l, delta: l.total - (i === laps.length - 1 ? 0 : laps[i + 1].total) }));
+  const deltas = lapDeltas.map(l => l.delta);
+  const best = deltas.length > 1 ? Math.min(...deltas) : null;
+  const worst = deltas.length > 1 ? Math.max(...deltas) : null;
+
+  return (
+    <div>
+      <div className="bz-stopwatch-face">
+        <div className={"bz-timer-flame" + (running ? " lit" : "")} style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+          <FlameIcon streak={running ? 1 : 0} size={40} />
+        </div>
+        <div className="bz-sw-time">{m}:{s}<span className="bz-sw-ms">.{cs}</span></div>
+        <div className="bz-sw-ctrl-row">
+          <button className="bz-sw-btn" onClick={reset} disabled={!elapsed && laps.length === 0}>Reset</button>
+          <button className="bz-sw-btn primary" onClick={toggle}>{running ? "Stop" : "Start"}</button>
+          <button className="bz-sw-btn" onClick={lap} disabled={!running}>Lap</button>
+        </div>
+      </div>
+      {lapDeltas.length > 0 && (
+        <div className="bz-sw-laps">
+          {lapDeltas.map((l, i) => {
+            const f = formatStopwatch(l.delta);
+            const cls = l.delta === best ? "best" : l.delta === worst ? "worst" : "";
+            return (
+              <div className="bz-lap-row" key={l.id}>
+                <span className="bz-lap-num">Lap {lapDeltas.length - i}</span>
+                <span className={"bz-lap-time " + cls}>{f.m}:{f.s}.{f.cs}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
